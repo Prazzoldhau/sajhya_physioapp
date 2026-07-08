@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (_tab == 1)
             IconButton(
               icon: const Icon(Icons.search),
-              onPressed: () => _patientKey.currentState?.showSearch(),
+              onPressed: () => _patientKey.currentState?.openSearch(),
             ),
           PopupMenuButton(
             itemBuilder: (_) => [

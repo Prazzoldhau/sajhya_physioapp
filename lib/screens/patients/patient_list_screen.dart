@@ -40,7 +40,7 @@ class PatientListScreenState extends State<PatientListScreen> {
     }
   }
 
-  void showSearch() {
+  void openSearch() {
     showSearch<String>(
       context: context,
       delegate: _PatientSearchDelegate(onSearch: (q) => reload(q: q)),
@@ -92,7 +92,7 @@ class PatientListScreenState extends State<PatientListScreen> {
       appBar: AppBar(
         title: const Text('Patients'),
         actions: [
-          IconButton(icon: const Icon(Icons.search), onPressed: showSearch),
+          IconButton(icon: const Icon(Icons.search), onPressed: openSearch),
         ],
       ),
       body: _buildContent(),
