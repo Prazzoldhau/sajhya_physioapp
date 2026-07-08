@@ -12,10 +12,10 @@ class ReferralListScreen extends StatefulWidget {
   const ReferralListScreen({super.key, this.embedded = false});
 
   @override
-  State<ReferralListScreen> createState() => _ReferralListScreenState();
+  ReferralListScreenState createState() => ReferralListScreenState();
 }
 
-class _ReferralListScreenState extends State<ReferralListScreen> {
+class ReferralListScreenState extends State<ReferralListScreen> {
   List<Referral> _referrals = [];
   bool _loading = true;
 
@@ -24,6 +24,8 @@ class _ReferralListScreenState extends State<ReferralListScreen> {
     super.initState();
     _load();
   }
+
+  Future<void> reload() => _load();
 
   Future<void> _load() async {
     setState(() => _loading = true);

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/custom_text_field.dart';
-import 'patients/patient_list_screen.dart';
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -35,7 +35,7 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => PatientListScreen(userData: result['user'] as Map<String, dynamic>),
+            builder: (_) => HomeScreen(userData: result['user'] as Map<String, dynamic>),
           ),
         );
       } else {

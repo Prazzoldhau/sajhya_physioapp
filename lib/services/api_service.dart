@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static final ApiService _instance = ApiService._internal();
@@ -48,6 +49,29 @@ class ApiService {
 
   // ── auth ──────────────────────────────────────────────────────────────────
 
+  // ── user cache (SharedPreferences) ───────────────────────────────────────
+
+  static const _kUser = 'physio_user';
+
+  Future<void> _saveUser(Map<String, dynamic> user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kUser, jsonEncode(user));
+  }
+
+  Future<Map<String, dynamic>?> loadCachedUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kUser);
+    if (raw == null) return null;
+    return jsonDecode(raw) as Map<String, dynamic>;
+  }
+
+  Future<void> _clearUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_kUser);
+  }
+
+  // ── auth ──────────────────────────────────────────────────────────────────
+
   Future<Map<String, dynamic>> login(String username, String password) async {
     await _ensureCsrf();
     final csrf = await _csrf();
@@ -56,7 +80,11 @@ class ApiService {
       data: {'username': username, 'password': password},
       options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
     );
-    return _decode(r.data);
+    final result = _decode(r.data);
+    if (result['success'] == true && result['user'] != null) {
+      await _saveUser(result['user'] as Map<String, dynamic>);
+    }
+    return result;
   }
 
   Future<void> logout() async {
@@ -65,11 +93,23 @@ class ApiService {
       await _dio.post('/logout/', options: Options(headers: {'X-CSRFToken': csrf}));
     } finally {
       await _cookieJar.deleteAll();
+      await _clearUser();
     }
   }
 
   Future<Map<String, dynamic>> me() async {
     final r = await _dio.get('/me/');
+    final result = _decode(r.data);
+    if (result['success'] == true && result['user'] != null) {
+      await _saveUser(result['user'] as Map<String, dynamic>);
+    }
+    return result;
+  }
+
+  // ── dashboard ─────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getDashboard() async {
+    final r = await _dio.get('/dashboard/');
     return _decode(r.data);
   }
 

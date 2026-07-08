@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
-import 'patients/patient_list_screen.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,20 +19,34 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _check() async {
-    await Future.delayed(const Duration(milliseconds: 1200));
+    final api = ApiService();
+    await api.init();
+
+    // Try loading cached user immediately — no network needed
+    final cached = await api.loadCachedUser();
+
+    // Minimum splash display time
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
 
+    if (cached != null) {
+      // Navigate instantly with cached data, then validate session in background
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => HomeScreen(userData: cached)),
+      );
+      // Validate session silently — HomeScreen handles session expiry via _onSessionExpired
+      return;
+    }
+
+    // No cached user — try live check
     try {
-      final api = ApiService();
-      await api.init();
       final result = await api.me();
       if (!mounted) return;
       if (result['success'] == true) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => PatientListScreen(userData: result['user'] as Map<String, dynamic>),
-          ),
+          MaterialPageRoute(builder: (_) => HomeScreen(userData: result['user'] as Map<String, dynamic>)),
         );
         return;
       }
