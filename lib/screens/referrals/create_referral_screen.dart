@@ -21,7 +21,6 @@ class _CreateReferralScreenState extends State<CreateReferralScreen> {
 
   List<Map<String, dynamic>> _users = [];
   int? _selectedUserId;
-  String _selectedUserName = '';
   bool _loading = false;
   bool _loadingUsers = true;
 
@@ -122,7 +121,7 @@ class _CreateReferralScreenState extends State<CreateReferralScreen> {
                               child: Text(u['full_name'] as String? ?? u['username'] as String),
                             )),
                       ],
-                      onChanged: (v) => setState(() { _selectedUserId = v; _selectedUserName = v == null ? '' : (_users.firstWhere((u) => u['id'] == v)['full_name'] as String? ?? ''); }),
+                      onChanged: (v) => setState(() => _selectedUserId = v),
                     ),
               const SizedBox(height: 24),
 

@@ -108,23 +108,26 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             ),
       floatingActionButton: _loading
           ? null
-          : FloatingActionButton.extended(
-              onPressed: () {
-                if (_tabs.index == 0) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => PrescriptionScreen(patient: widget.patient)),
-                  ).then((_) => _load());
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => AddSessionScreen(patient: widget.patient)),
-                  ).then((_) => _load());
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: Text(_tabs.index == 0 ? 'New Rx' : 'Add Note'),
-              backgroundColor: AppColors.primary,
+          : ListenableBuilder(
+              listenable: _tabs,
+              builder: (_, __) => FloatingActionButton.extended(
+                onPressed: () {
+                  if (_tabs.index == 0) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => PrescriptionScreen(patient: widget.patient)),
+                    ).then((_) => _load());
+                  } else {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => AddSessionScreen(patient: widget.patient)),
+                    ).then((_) => _load());
+                  }
+                },
+                icon: const Icon(Icons.add),
+                label: Text(_tabs.index == 0 ? 'New Rx' : 'Add Note'),
+                backgroundColor: AppColors.primary,
+              ),
             ),
     );
   }
