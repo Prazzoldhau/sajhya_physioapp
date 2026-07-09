@@ -28,7 +28,7 @@ class _HomeScreenState extends State<HomeScreen> {
     switch (_tab) {
       case 1: return 'Patients';
       case 2: return 'Referrals';
-      default: return 'Sajhya Physio';
+      default: return '';
     }
   }
 

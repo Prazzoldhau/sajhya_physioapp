@@ -140,6 +140,106 @@ class ApiService {
     return _decode(r.data);
   }
 
+  // ── clinics ───────────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getClinics() async {
+    final r = await _dio.get('/clinics/');
+    final d = _decode(r.data);
+    return List<Map<String, dynamic>>.from(d['clinics']);
+  }
+
+  Future<Map<String, dynamic>> createClinic({
+    required String name,
+    required String address,
+    required String phone,
+    String? panNumber,
+  }) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/clinics/',
+      data: {
+        'clinic_name': name,
+        'address': address,
+        'phone': phone,
+        if (panNumber != null && panNumber.isNotEmpty) 'pan_number': panNumber,
+      },
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
+  // ── home visits (find-physio bookings) ───────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getHomeVisits({String? status}) async {
+    final r = await _dio.get(
+      '/home-visits/',
+      queryParameters: status != null && status.isNotEmpty ? {'status': status} : null,
+    );
+    final d = _decode(r.data);
+    return List<Map<String, dynamic>>.from(d['home_visits']);
+  }
+
+  Future<Map<String, dynamic>> updateHomeVisitStatus(
+    int bookingId, {
+    required String status,
+    String? notes,
+  }) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/home-visits/$bookingId/status/',
+      data: {'status': status, if (notes != null) 'notes': notes},
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
+  // ── shop (marketplace) ────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> getShopCategories() async {
+    final r = await _dio.get('/shop/categories/');
+    final d = _decode(r.data);
+    return List<Map<String, dynamic>>.from(d['categories']);
+  }
+
+  Future<List<Map<String, dynamic>>> getShopProducts({int? categoryId, String? search}) async {
+    final r = await _dio.get('/shop/products/', queryParameters: {
+      if (categoryId != null) 'category': categoryId,
+      if (search != null && search.isNotEmpty) 'search': search,
+    });
+    final d = _decode(r.data);
+    return List<Map<String, dynamic>>.from(d['products']);
+  }
+
+  Future<List<Map<String, dynamic>>> getShopOrders() async {
+    final r = await _dio.get('/shop/orders/');
+    final d = _decode(r.data);
+    return List<Map<String, dynamic>>.from(d['orders']);
+  }
+
+  Future<Map<String, dynamic>> createShopOrder({
+    required List<Map<String, dynamic>> items,
+    required String customerPhone,
+    required String deliveryAddress,
+    String? customerName,
+    String? customerEmail,
+    String? notes,
+  }) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/shop/orders/',
+      data: {
+        'items': items,
+        'customer_phone': customerPhone,
+        'delivery_address': deliveryAddress,
+        if (customerName != null) 'customer_name': customerName,
+        if (customerEmail != null) 'customer_email': customerEmail,
+        if (notes != null) 'notes': notes,
+      },
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
   // ── exercises ─────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getRegions() async {

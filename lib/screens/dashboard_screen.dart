@@ -57,10 +57,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return (n != null && n.isNotEmpty) ? n : widget.userData['username'] as String? ?? 'Physio';
   }
 
-  // "My Clinics" vs "Enterprise" is decided by the backend's user_type field.
+  // Enterprise accounts get a stripped-down dashboard (IP Request only).
   bool get _isEnterprise => (widget.userData['user_type']?.toString().toLowerCase() ?? '').contains('enterprise');
-  String get _orgLabel => _isEnterprise ? 'Enterprise' : 'My\nClinics';
-  IconData get _orgIcon => _isEnterprise ? Icons.apartment_outlined : Icons.local_hospital_outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   colors: [AppColors.primary, Color(0xFF1A8FE3)],
                 ),
               ),
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 48),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -103,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Stat cards — overlapping the header
           SliverToBoxAdapter(
             child: Transform.translate(
-              offset: const Offset(0, -20),
+              offset: const Offset(0, -16),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: _loading
@@ -121,99 +119,111 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Quick actions — platform features beyond the core patient workflow.
+          // Quick actions — enterprise accounts only manage IP requests here;
+          // everyone else gets the full set of platform features.
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
               child: FeatureTileRow(
                 title: 'Quick Actions',
-                tiles: [
-                  FeatureTile(
-                    icon: _orgIcon,
-                    label: _orgLabel,
-                    color: AppColors.primary,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClinicsScreen(userData: widget.userData))),
-                  ),
-                  FeatureTile(
-                    icon: Icons.home_work_outlined,
-                    label: 'Home\nVisit',
-                    color: AppColors.accentOrange,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeVisitScreen())),
-                  ),
-                  FeatureTile(
-                    icon: Icons.storefront_outlined,
-                    label: 'Shop',
-                    color: AppColors.accentTeal,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen())),
-                  ),
-                  FeatureTile(
-                    icon: Icons.assignment_add,
-                    label: 'IP\nRequest',
-                    color: AppColors.accentIndigo,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IpRequestScreen())),
-                  ),
-                  FeatureTile(
-                    icon: Icons.forum_outlined,
-                    label: 'Discussion\nForum',
-                    color: AppColors.accentPurple,
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiscussionForumScreen())),
-                  ),
-                ],
+                tiles: _isEnterprise
+                    ? [
+                        FeatureTile(
+                          icon: Icons.assignment_add,
+                          label: 'IP\nRequest',
+                          color: AppColors.accentIndigo,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IpRequestScreen())),
+                        ),
+                      ]
+                    : [
+                        FeatureTile(
+                          icon: Icons.local_hospital_outlined,
+                          label: 'My\nClinics',
+                          color: AppColors.primary,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ClinicsScreen())),
+                        ),
+                        FeatureTile(
+                          icon: Icons.home_work_outlined,
+                          label: 'Home\nVisit',
+                          color: AppColors.accentOrange,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeVisitScreen())),
+                        ),
+                        FeatureTile(
+                          icon: Icons.storefront_outlined,
+                          label: 'Shop',
+                          color: AppColors.accentTeal,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen())),
+                        ),
+                        FeatureTile(
+                          icon: Icons.assignment_add,
+                          label: 'IP\nRequest',
+                          color: AppColors.accentIndigo,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IpRequestScreen())),
+                        ),
+                        FeatureTile(
+                          icon: Icons.forum_outlined,
+                          label: 'Discussion\nForum',
+                          color: AppColors.accentPurple,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiscussionForumScreen())),
+                        ),
+                      ],
               ),
             ),
           ),
 
-          // Recent patients
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: SectionHeader(
-                title: 'Recent Patients',
-                actionLabel: widget.onNavigateToPatients != null ? 'See all' : null,
-                onAction: widget.onNavigateToPatients,
-              ),
-            ),
-          ),
-
-          if (_loading)
-            const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
-          else if ((_stats?['recent_patients'] as List?)?.isEmpty != false)
-            const SliverToBoxAdapter(
+          // Recent patients — not relevant to enterprise accounts, which
+          // operate at the clinic/branch level rather than per-patient.
+          if (!_isEnterprise) ...[
+            SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(
-                  child: Text('No patients yet. Add your first patient!', style: TextStyle(color: AppColors.textMuted)),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                child: SectionHeader(
+                  title: 'Recent Patients',
+                  actionLabel: widget.onNavigateToPatients != null ? 'See all' : null,
+                  onAction: widget.onNavigateToPatients,
                 ),
               ),
-            )
-          else
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, i) {
-                  final raw = (_stats!['recent_patients'] as List)[i] as Map<String, dynamic>;
-                  final p = Patient.fromJson(raw);
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
-                    child: Card(
-                      child: ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: AppColors.primary.withOpacity(0.1),
-                          child: Text(p.patientName[0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(p.patientName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                        subtitle: Text(p.patientDiagnosis, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        trailing: Text(p.patientCode, style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: AppColors.textMuted)),
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => PatientDetailScreen(patient: p)),
-                        ).then((_) => _load()),
-                      ),
-                    ),
-                  );
-                },
-                childCount: (_stats?['recent_patients'] as List?)?.length ?? 0,
-              ),
             ),
+            if (_loading)
+              const SliverToBoxAdapter(child: Center(child: CircularProgressIndicator()))
+            else if ((_stats?['recent_patients'] as List?)?.isEmpty != false)
+              const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(
+                    child: Text('No patients yet. Add your first patient!', style: TextStyle(color: AppColors.textMuted)),
+                  ),
+                ),
+              )
+            else
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (_, i) {
+                    final raw = (_stats!['recent_patients'] as List)[i] as Map<String, dynamic>;
+                    final p = Patient.fromJson(raw);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+                      child: Card(
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primary.withOpacity(0.1),
+                            child: Text(p.patientName[0].toUpperCase(), style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold)),
+                          ),
+                          title: Text(p.patientName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                          subtitle: Text(p.patientDiagnosis, maxLines: 1, overflow: TextOverflow.ellipsis),
+                          trailing: Text(p.patientCode, style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: AppColors.textMuted)),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => PatientDetailScreen(patient: p)),
+                          ).then((_) => _load()),
+                        ),
+                      ),
+                    );
+                  },
+                  childCount: (_stats?['recent_patients'] as List?)?.length ?? 0,
+                ),
+              ),
+          ],
 
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
