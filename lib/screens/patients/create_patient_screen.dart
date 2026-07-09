@@ -4,7 +4,10 @@ import '../../theme/app_theme.dart';
 import '../../widgets/custom_text_field.dart';
 
 class CreatePatientScreen extends StatefulWidget {
-  const CreatePatientScreen({super.key});
+  final int? clinicId;
+  final String? clinicName;
+
+  const CreatePatientScreen({super.key, this.clinicId, this.clinicName});
 
   @override
   State<CreatePatientScreen> createState() => _CreatePatientScreenState();
@@ -26,6 +29,7 @@ class _CreatePatientScreenState extends State<CreatePatientScreen> {
         name: _nameCtrl.text.trim(),
         contact: _contactCtrl.text.trim(),
         diagnosis: _diagnosisCtrl.text.trim(),
+        clinicId: widget.clinicId,
       );
 
       if (!mounted) return;
@@ -53,7 +57,7 @@ class _CreatePatientScreenState extends State<CreatePatientScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Patient')),
+      appBar: AppBar(title: Text(widget.clinicName != null ? 'Add Patient — ${widget.clinicName}' : 'Add Patient')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Form(

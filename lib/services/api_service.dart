@@ -125,11 +125,17 @@ class ApiService {
     required String name,
     required String contact,
     required String diagnosis,
+    int? clinicId,
   }) async {
     final csrf = await _csrf();
     final r = await _dio.post(
       '/patients/',
-      data: {'patient_name': name, 'patient_contact': contact, 'patient_diagnosis': diagnosis},
+      data: {
+        'patient_name': name,
+        'patient_contact': contact,
+        'patient_diagnosis': diagnosis,
+        if (clinicId != null) 'clinic_id': clinicId,
+      },
       options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
     );
     return _decode(r.data);
@@ -146,6 +152,11 @@ class ApiService {
     final r = await _dio.get('/clinics/');
     final d = _decode(r.data);
     return List<Map<String, dynamic>>.from(d['clinics']);
+  }
+
+  Future<Map<String, dynamic>> getClinicDetail(int clinicId) async {
+    final r = await _dio.get('/clinics/$clinicId/');
+    return _decode(r.data);
   }
 
   Future<Map<String, dynamic>> createClinic({

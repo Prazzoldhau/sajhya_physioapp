@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
+import 'clinic_detail_screen.dart';
 import 'create_clinic_screen.dart';
 
 /// "My Clinics" — lists the clinics the logged-in user owns, backed by
@@ -93,6 +94,15 @@ class _ClinicsScreenState extends State<ClinicsScreen> {
                     c['clinic_code']?.toString() ?? '',
                     style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: AppColors.textMuted),
                   ),
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ClinicDetailScreen(
+                        clinicId: c['id'] as int,
+                        clinicName: c['clinic_name']?.toString() ?? 'Clinic',
+                      ),
+                    ),
+                  ).then((_) => _load()),
                 ),
               );
             },

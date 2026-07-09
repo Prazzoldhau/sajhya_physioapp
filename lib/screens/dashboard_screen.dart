@@ -155,12 +155,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen())),
                         ),
                         FeatureTile(
-                          icon: Icons.assignment_add,
-                          label: 'IP\nRequest',
-                          color: AppColors.accentIndigo,
-                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IpRequestScreen())),
-                        ),
-                        FeatureTile(
                           icon: Icons.forum_outlined,
                           label: 'Discussion\nForum',
                           color: AppColors.accentPurple,
