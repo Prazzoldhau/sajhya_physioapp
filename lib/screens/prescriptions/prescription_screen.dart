@@ -194,35 +194,119 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     if (_loadingExercises) return const Center(child: CircularProgressIndicator());
     if (_exercises.isEmpty) return const Center(child: Text('No exercises in this region'));
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(8),
+    return GridView.builder(
+      padding: const EdgeInsets.all(10),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        mainAxisSpacing: 10,
+        crossAxisSpacing: 10,
+        childAspectRatio: 0.72,
+      ),
       itemCount: _exercises.length,
-      itemBuilder: (_, i) {
-        final e = _exercises[i];
-        final picked = _selected.any((x) => x.id == e.id);
-        return Card(
-          child: CheckboxListTile(
-            value: picked,
-            onChanged: (_) {
-              setState(() {
-                if (picked) {
-                  _selected.removeWhere((x) => x.id == e.id);
-                } else {
-                  _selected.add(e);
-                }
-              });
-            },
-            title: Text(e.exerciseName, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-            subtitle: Text('${e.difficultyLabel} • ${e.defaultSets}×${e.defaultReps}', style: const TextStyle(fontSize: 11)),
-            secondary: CircleAvatar(
-              radius: 14,
-              backgroundColor: AppColors.primary.withOpacity(0.1),
-              child: Text('${e.difficultyLevel}', style: const TextStyle(color: AppColors.primary, fontSize: 11)),
+      itemBuilder: (_, i) => _exerciseCard(_exercises[i]),
+    );
+  }
+
+  Widget _exerciseCard(Exercise e) {
+    final picked = _selected.any((x) => x.id == e.id);
+    final color = _difficultyColor(e.difficultyLevel);
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (picked) {
+            _selected.removeWhere((x) => x.id == e.id);
+          } else {
+            _selected.add(e);
+          }
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: picked ? AppColors.primary : Colors.transparent, width: 2),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 3))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    _exerciseImage(e.exerciseUrl),
+                    if (picked)
+                      Container(
+                        color: AppColors.primary.withOpacity(0.35),
+                        child: const Center(child: Icon(Icons.check_circle, color: Colors.white, size: 32)),
+                      ),
+                  ],
+                ),
+              ),
             ),
-            activeColor: AppColors.primary,
-          ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    e.exerciseName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                        child: Text(e.difficultyLabel, style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.bold)),
+                      ),
+                      const Spacer(),
+                      Text('${e.defaultSets}×${e.defaultReps}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exerciseImage(String url) {
+    if (url.isEmpty) {
+      return Container(
+        color: Colors.grey.shade200,
+        child: const Center(child: Icon(Icons.image_not_supported_outlined, color: AppColors.textMuted, size: 28)),
+      );
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey.shade200,
+        child: const Center(child: Icon(Icons.broken_image_outlined, color: AppColors.textMuted, size: 28)),
+      ),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return Container(
+          color: Colors.grey.shade100,
+          child: const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
         );
       },
     );
   }
+
+  Color _difficultyColor(int level) => switch (level) {
+        1 => const Color(0xFF4CAF50),
+        2 => const Color(0xFF8BC34A),
+        3 => const Color(0xFFFFC107),
+        4 => const Color(0xFFFF9800),
+        _ => const Color(0xFF757575),
+      };
 }

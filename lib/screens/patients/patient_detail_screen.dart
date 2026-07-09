@@ -305,8 +305,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
 
   Widget _exerciseRow(Map<String, dynamic> ex) {
     final completed = ex['is_completed'] == true;
+    final imageUrl = ex['exercise_url']?.toString() ?? '';
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Checkbox(
@@ -314,6 +315,27 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
             activeColor: AppColors.success,
             onChanged: (v) => _toggleExercise(ex['id'] as int, v ?? false),
           ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: imageUrl.isEmpty
+                  ? Container(
+                      color: Colors.grey.shade200,
+                      child: const Icon(Icons.image_not_supported_outlined, size: 16, color: AppColors.textMuted),
+                    )
+                  : Image.network(
+                      imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: Colors.grey.shade200,
+                        child: const Icon(Icons.broken_image_outlined, size: 16, color: AppColors.textMuted),
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               ex['exercise_name']?.toString() ?? '',
