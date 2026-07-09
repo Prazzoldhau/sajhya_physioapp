@@ -6,8 +6,9 @@ import '../../theme/app_theme.dart';
 
 class PrescriptionScreen extends StatefulWidget {
   final Patient patient;
+  final int? existingPrescriptionId;
 
-  const PrescriptionScreen({super.key, required this.patient});
+  const PrescriptionScreen({super.key, required this.patient, this.existingPrescriptionId});
 
   @override
   State<PrescriptionScreen> createState() => _PrescriptionScreenState();
@@ -17,10 +18,13 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
   List<Region> _regions = [];
   List<Exercise> _exercises = [];
   final List<Exercise> _selected = [];
+  final _conditionCtrl = TextEditingController();
   int? _activeSubregion;
   bool _loadingRegions = true;
   bool _loadingExercises = false;
   bool _saving = false;
+
+  bool get _isAddingToExisting => widget.existingPrescriptionId != null;
 
   @override
   void initState() {
@@ -58,15 +62,23 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     }
     setState(() => _saving = true);
     try {
-      await ApiService().createPrescription(
-        widget.patient.patientCode,
-        _selected.map((e) => e.id).toList(),
-      );
+      if (_isAddingToExisting) {
+        await ApiService().addExercisesToPrescription(
+          widget.existingPrescriptionId!,
+          _selected.map((e) => e.id).toList(),
+        );
+      } else {
+        await ApiService().createPrescription(
+          widget.patient.patientCode,
+          _selected.map((e) => e.id).toList(),
+          conditionLabel: _conditionCtrl.text.trim(),
+        );
+      }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Prescription saved!'), backgroundColor: AppColors.success),
+        SnackBar(content: Text(_isAddingToExisting ? 'Exercises added!' : 'Prescription saved!'), backgroundColor: AppColors.success),
       );
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
@@ -77,10 +89,16 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
   }
 
   @override
+  void dispose() {
+    _conditionCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('New Rx — ${widget.patient.patientName}'),
+        title: Text(_isAddingToExisting ? 'Add Exercises — ${widget.patient.patientName}' : 'New Rx — ${widget.patient.patientName}'),
         actions: [
           if (_selected.isNotEmpty)
             Padding(
@@ -94,20 +112,38 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
             ),
         ],
       ),
-      body: Row(
+      body: Column(
         children: [
-          // Sidebar: regions + subregions
-          SizedBox(
-            width: 160,
-            child: _loadingRegions
-                ? const Center(child: CircularProgressIndicator())
-                : ListView(
-                    children: _regions.map((r) => _regionTile(r)).toList(),
-                  ),
+          if (!_isAddingToExisting)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+              child: TextField(
+                controller: _conditionCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Condition (optional)',
+                  hintText: 'e.g. Cervical Spondylosis',
+                  prefixIcon: Icon(Icons.label_outline),
+                ),
+              ),
+            ),
+          Expanded(
+            child: Row(
+              children: [
+                // Sidebar: regions + subregions
+                SizedBox(
+                  width: 160,
+                  child: _loadingRegions
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView(
+                          children: _regions.map((r) => _regionTile(r)).toList(),
+                        ),
+                ),
+                const VerticalDivider(width: 1),
+                // Exercise list
+                Expanded(child: _exercisePanel()),
+              ],
+            ),
           ),
-          const VerticalDivider(width: 1),
-          // Exercise list
-          Expanded(child: _exercisePanel()),
         ],
       ),
       // Selected exercises bottom sheet

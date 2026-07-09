@@ -18,20 +18,38 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
   Map<String, dynamic>? _detail;
+  List<Map<String, dynamic>> _prescriptions = [];
+  Map<String, dynamic>? _stats;
   bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
     _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final d = await ApiService().getPatientDetail(widget.patient.patientCode);
-      setState(() => _detail = d);
+      final api = ApiService();
+      final code = widget.patient.patientCode;
+      final results = await Future.wait([
+        api.getPatientDetail(code),
+        api.getPrescriptions(code),
+        api.getPatientStats(code),
+      ]);
+      setState(() {
+        _detail = results[0] as Map<String, dynamic>;
+        _prescriptions = results[1] as List<Map<String, dynamic>>;
+        _stats = results[2] as Map<String, dynamic>;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -43,6 +61,42 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     }
   }
 
+  Future<void> _toggleExercise(int exerciseId, bool value) async {
+    try {
+      await ApiService().toggleExerciseCompletion(exerciseId, isCompleted: value);
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _removeExercise(int exerciseId) async {
+    try {
+      await ApiService().removeExerciseFromPrescription(exerciseId);
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
+  Future<void> _addExercisesTo(int prescriptionId) async {
+    final added = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => PrescriptionScreen(patient: widget.patient, existingPrescriptionId: prescriptionId),
+      ),
+    );
+    if (added == true) _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.patient;
@@ -51,9 +105,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         title: Text(p.patientName),
         bottom: TabBar(
           controller: _tabs,
+          isScrollable: true,
           tabs: const [
-            Tab(icon: Icon(Icons.fitness_center), text: 'Prescriptions'),
+            Tab(icon: Icon(Icons.fitness_center), text: 'Rx'),
+            Tab(icon: Icon(Icons.track_changes_outlined), text: 'Track'),
             Tab(icon: Icon(Icons.notes), text: 'Sessions'),
+            Tab(icon: Icon(Icons.bar_chart_outlined), text: 'Stats'),
           ],
         ),
       ),
@@ -100,7 +157,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                     controller: _tabs,
                     children: [
                       _prescriptionsTab(),
+                      _trackTab(),
                       _sessionsTab(),
+                      _statsTab(),
                     ],
                   ),
                 ),
@@ -110,53 +169,169 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           ? null
           : ListenableBuilder(
               listenable: _tabs,
-              builder: (_, __) => FloatingActionButton.extended(
-                onPressed: () {
-                  if (_tabs.index == 0) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => PrescriptionScreen(patient: widget.patient)),
-                    ).then((_) => _load());
-                  } else {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => AddSessionScreen(patient: widget.patient)),
-                    ).then((_) => _load());
-                  }
-                },
-                icon: const Icon(Icons.add),
-                label: Text(_tabs.index == 0 ? 'New Rx' : 'Add Note'),
-                backgroundColor: AppColors.primary,
-              ),
+              builder: (_, __) {
+                if (_tabs.index == 0) {
+                  return FloatingActionButton.extended(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => PrescriptionScreen(patient: widget.patient)),
+                      ).then((_) => _load());
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('New Rx'),
+                    backgroundColor: AppColors.primary,
+                  );
+                }
+                if (_tabs.index == 2) {
+                  return FloatingActionButton.extended(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => AddSessionScreen(patient: widget.patient)),
+                      ).then((_) => _load());
+                    },
+                    icon: const Icon(Icons.add),
+                    label: const Text('Add Note'),
+                    backgroundColor: AppColors.primary,
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
     );
   }
 
   Widget _prescriptionsTab() {
-    final prescriptions = (_detail?['prescriptions'] as List<dynamic>?) ?? [];
-    if (prescriptions.isEmpty) {
+    if (_prescriptions.isEmpty) {
       return _empty('No prescriptions yet', Icons.fitness_center_outlined);
     }
     return ListView.builder(
       padding: const EdgeInsets.all(12),
-      itemCount: prescriptions.length,
+      itemCount: _prescriptions.length,
       itemBuilder: (_, i) {
-        final rx = prescriptions[i] as Map<String, dynamic>;
+        final rx = _prescriptions[i];
+        final label = (rx['condition_label']?.toString().isNotEmpty == true)
+            ? rx['condition_label'].toString()
+            : 'Prescription #${rx['id']}';
         return Card(
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: _statusColor(rx['status'] as String? ?? 'active').withOpacity(0.15),
               child: Icon(Icons.fitness_center, color: _statusColor(rx['status'] as String? ?? 'active')),
             ),
-            title: Text('Prescription #${rx['id']}'),
-            subtitle: Text('${rx['exercise_count']} exercises • ${rx['status']}'),
+            title: Text(label),
+            subtitle: Text('${rx['total_exercises']} exercises • ${rx['status']}'),
             trailing: Text(
               _formatDate(rx['created_at'] as String? ?? ''),
               style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
             ),
+            onTap: () => _tabs.animateTo(1),
           ),
         );
       },
+    );
+  }
+
+  Widget _trackTab() {
+    if (_prescriptions.isEmpty) {
+      return _empty('No prescriptions to track yet', Icons.track_changes_outlined);
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(12),
+      itemCount: _prescriptions.length,
+      itemBuilder: (_, i) => _trackCard(_prescriptions[i]),
+    );
+  }
+
+  Widget _trackCard(Map<String, dynamic> rx) {
+    final exercises = ((rx['exercises'] as List?) ?? []).cast<Map<String, dynamic>>();
+    final total = rx['total_exercises'] as int? ?? exercises.length;
+    final completed = rx['completed_exercises'] as int? ?? exercises.where((e) => e['is_completed'] == true).length;
+    final progress = total > 0 ? completed / total : 0.0;
+    final status = rx['status'] as String? ?? 'active';
+    final label = (rx['condition_label']?.toString().isNotEmpty == true) ? rx['condition_label'].toString() : 'Prescription #${rx['id']}';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(color: _statusColor(status).withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                  child: Text(status.toUpperCase(), style: TextStyle(fontSize: 10, color: _statusColor(status), fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                backgroundColor: Colors.grey.shade200,
+                color: AppColors.success,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text('$completed / $total exercises completed', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            const Divider(height: 20),
+            if (exercises.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Text('No exercises assigned yet', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
+              )
+            else
+              for (final ex in exercises) _exerciseRow(ex),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () => _addExercisesTo(rx['id'] as int),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Exercise'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exerciseRow(Map<String, dynamic> ex) {
+    final completed = ex['is_completed'] == true;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Checkbox(
+            value: completed,
+            activeColor: AppColors.success,
+            onChanged: (v) => _toggleExercise(ex['id'] as int, v ?? false),
+          ),
+          Expanded(
+            child: Text(
+              ex['exercise_name']?.toString() ?? '',
+              style: TextStyle(
+                fontSize: 13,
+                decoration: completed ? TextDecoration.lineThrough : null,
+                color: completed ? AppColors.textMuted : AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Text('${ex['sets']}×${ex['reps']}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          IconButton(
+            icon: const Icon(Icons.close, size: 16, color: AppColors.danger),
+            onPressed: () => _removeExercise(ex['id'] as int),
+            tooltip: 'Remove exercise',
+          ),
+        ],
+      ),
     );
   }
 
@@ -207,6 +382,73 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _statsTab() {
+    final s = _stats;
+    if (s == null) return const Center(child: CircularProgressIndicator());
+    final overall = (s['overall_completion_percentage'] as num? ?? 0).toDouble();
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              _statTile('Prescriptions', '${s['total_prescriptions']}', Icons.fitness_center, AppColors.primary),
+              const SizedBox(width: 10),
+              _statTile('Active', '${s['active_prescriptions']}', Icons.play_circle_outline, AppColors.success),
+              const SizedBox(width: 10),
+              _statTile('Completed', '${s['completed_prescriptions']}', Icons.check_circle_outline, AppColors.info),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _statTile('Sessions', '${s['total_sessions']}', Icons.notes_outlined, AppColors.secondary),
+              const SizedBox(width: 10),
+              _statTile('Exercises', '${s['completed_exercises']}/${s['total_exercises']}', Icons.checklist, AppColors.accentTeal),
+            ],
+          ),
+          const SizedBox(height: 24),
+          const Text('Overall Exercise Adherence', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: overall / 100,
+              minHeight: 10,
+              backgroundColor: Colors.grey.shade200,
+              color: AppColors.success,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text('$overall% complete', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+
+  Widget _statTile(String label, String value, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 20),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+            const SizedBox(height: 2),
+            Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
     );
   }
 

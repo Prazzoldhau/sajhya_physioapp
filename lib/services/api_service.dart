@@ -146,6 +146,11 @@ class ApiService {
     return _decode(r.data);
   }
 
+  Future<Map<String, dynamic>> getPatientStats(String patientCode) async {
+    final r = await _dio.get('/patients/$patientCode/stats/');
+    return _decode(r.data);
+  }
+
   // ── clinics ───────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getClinics() async {
@@ -275,13 +280,49 @@ class ApiService {
 
   Future<Map<String, dynamic>> createPrescription(
     String patientCode,
+    List<int> exerciseIds, {
+    String? conditionLabel,
+  }) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/prescriptions/$patientCode/',
+      data: {
+        'exercise_ids': exerciseIds,
+        if (conditionLabel != null && conditionLabel.isNotEmpty) 'condition_label': conditionLabel,
+      },
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
+  Future<Map<String, dynamic>> addExercisesToPrescription(
+    int prescriptionId,
     List<int> exerciseIds,
   ) async {
     final csrf = await _csrf();
     final r = await _dio.post(
-      '/prescriptions/$patientCode/',
+      '/prescriptions/exercises/$prescriptionId/add/',
       data: {'exercise_ids': exerciseIds},
       options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
+  Future<Map<String, dynamic>> toggleExerciseCompletion(int exerciseId, {required bool isCompleted}) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/prescription-exercises/$exerciseId/toggle/',
+      data: {'is_completed': isCompleted},
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
+  Future<Map<String, dynamic>> removeExerciseFromPrescription(int exerciseId) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/prescription-exercises/$exerciseId/remove/',
+      options: Options(headers: {'X-CSRFToken': csrf}),
     );
     return _decode(r.data);
   }

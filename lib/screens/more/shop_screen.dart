@@ -186,14 +186,14 @@ class _ShopScreenState extends State<ShopScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 64,
-            width: double.infinity,
-            decoration: BoxDecoration(
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              height: 64,
+              width: double.infinity,
               color: AppColors.accentTeal.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+              child: _productImage(p['image']?.toString()),
             ),
-            child: const Icon(Icons.medical_services_outlined, color: AppColors.accentTeal, size: 28),
           ),
           const SizedBox(height: 8),
           Text(
@@ -222,6 +222,21 @@ class _ShopScreenState extends State<ShopScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _productImage(String? url) {
+    if (url == null || url.isEmpty) {
+      return const Center(child: Icon(Icons.medical_services_outlined, color: AppColors.accentTeal, size: 28));
+    }
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.medical_services_outlined, color: AppColors.accentTeal, size: 28)),
+      loadingBuilder: (context, child, progress) {
+        if (progress == null) return child;
+        return const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)));
+      },
     );
   }
 }
