@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import '../models/patient.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feature_tile.dart';
 import 'patients/patient_detail_screen.dart';
-import 'patients/create_patient_screen.dart';
-import 'referrals/create_referral_screen.dart';
-import 'referrals/find_referral_screen.dart';
+import 'more/clinics_screen.dart';
+import 'more/home_visit_screen.dart';
+import 'more/shop_screen.dart';
+import 'more/ip_request_screen.dart';
+import 'more/discussion_forum_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final Map<String, dynamic> userData;
@@ -53,6 +56,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final n = widget.userData['full_name']?.toString().trim();
     return (n != null && n.isNotEmpty) ? n : widget.userData['username'] as String? ?? 'Physio';
   }
+
+  // "My Clinics" vs "Enterprise" is decided by the backend's user_type field.
+  bool get _isEnterprise => (widget.userData['user_type']?.toString().toLowerCase() ?? '').contains('enterprise');
+  String get _orgLabel => _isEnterprise ? 'Enterprise' : 'My\nClinics';
+  IconData get _orgIcon => _isEnterprise ? Icons.apartment_outlined : Icons.local_hospital_outlined;
 
   @override
   Widget build(BuildContext context) {
@@ -113,39 +121,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Quick actions
+          // Quick actions — platform features beyond the core patient workflow.
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Quick Actions', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 4,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    children: [
-                      _action(Icons.person_add_outlined, 'Add\nPatient', AppColors.primary, () async {
-                        final created = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => const CreatePatientScreen()));
-                        if (created == true) _load();
-                      }),
-                      _action(Icons.fitness_center_outlined, 'New\nRx', AppColors.secondary, () {
-                        widget.onNavigateToPatients?.call();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Select a patient first to create a prescription')),
-                        );
-                      }),
-                      _action(Icons.send_outlined, 'Refer\nPatient', const Color(0xFF0DCAF0), () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const CreateReferralScreen())).then((_) => _load());
-                      }),
-                      _action(Icons.search_outlined, 'Find\nReferral', AppColors.success, () {
-                        Navigator.push(context, MaterialPageRoute(builder: (_) => const FindReferralScreen())).then((_) => _load());
-                      }),
-                    ],
+              child: FeatureTileRow(
+                title: 'Quick Actions',
+                tiles: [
+                  FeatureTile(
+                    icon: _orgIcon,
+                    label: _orgLabel,
+                    color: AppColors.primary,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ClinicsScreen(userData: widget.userData))),
+                  ),
+                  FeatureTile(
+                    icon: Icons.home_work_outlined,
+                    label: 'Home\nVisit',
+                    color: AppColors.accentOrange,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HomeVisitScreen())),
+                  ),
+                  FeatureTile(
+                    icon: Icons.storefront_outlined,
+                    label: 'Shop',
+                    color: AppColors.accentTeal,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShopScreen())),
+                  ),
+                  FeatureTile(
+                    icon: Icons.assignment_add,
+                    label: 'IP\nRequest',
+                    color: AppColors.accentIndigo,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const IpRequestScreen())),
+                  ),
+                  FeatureTile(
+                    icon: Icons.forum_outlined,
+                    label: 'Discussion\nForum',
+                    color: AppColors.accentPurple,
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DiscussionForumScreen())),
                   ),
                 ],
               ),
@@ -156,16 +167,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Recent Patients', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
-                  if (widget.onNavigateToPatients != null)
-                    TextButton(
-                      onPressed: widget.onNavigateToPatients,
-                      child: const Text('See all'),
-                    ),
-                ],
+              child: SectionHeader(
+                title: 'Recent Patients',
+                actionLabel: widget.onNavigateToPatients != null ? 'See all' : null,
+                onAction: widget.onNavigateToPatients,
               ),
             ),
           ),
@@ -232,31 +237,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text('$value', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
             const SizedBox(height: 2),
             Text(label, style: const TextStyle(fontSize: 10, color: AppColors.textMuted), textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _action(IconData icon, String label, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600),
-              textAlign: TextAlign.center,
-            ),
           ],
         ),
       ),

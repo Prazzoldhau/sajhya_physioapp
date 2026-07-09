@@ -9,6 +9,13 @@ class AppColors {
   static const surface = Color(0xFFF8F9FA);
   static const textPrimary = Color(0xFF212529);
   static const textMuted = Color(0xFF6C757D);
+
+  // Feature accents — used for quick-access tiles across the app.
+  static const info = Color(0xFF0DCAF0);
+  static const accentTeal = Color(0xFF0CA678);
+  static const accentOrange = Color(0xFFFF7A45);
+  static const accentPurple = Color(0xFF8B5CF6);
+  static const accentIndigo = Color(0xFF4C6EF5);
 }
 
 class AppTheme {
