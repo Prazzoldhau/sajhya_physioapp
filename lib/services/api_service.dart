@@ -29,6 +29,13 @@ class ApiService {
     _dio.options.connectTimeout = const Duration(seconds: 15);
     _dio.options.receiveTimeout = const Duration(seconds: 15);
     _dio.options.responseType = ResponseType.plain;
+
+    // Django's CSRF middleware requires an Origin (or Referer) header on
+    // HTTPS requests -- browsers add this automatically, but Dio doesn't.
+    // Without it every POST/PUT/DELETE 403s with "Referer checking failed -
+    // no Referer", regardless of whether the CSRF token itself is valid.
+    final origin = Uri.parse(baseUrl);
+    _dio.options.headers['Origin'] = '${origin.scheme}://${origin.host}';
   }
 
   Future<void> _ensureCsrf() async => _dio.get('/csrf/');
