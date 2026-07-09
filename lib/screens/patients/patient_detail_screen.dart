@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../models/patient.dart';
 import '../../services/api_service.dart';
 import '../../theme/app_theme.dart';
@@ -21,6 +23,8 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   List<Map<String, dynamic>> _prescriptions = [];
   Map<String, dynamic>? _stats;
   bool _loading = true;
+
+  String get _qrToken => (_detail?['patient']?['qr_token'] as String?) ?? '';
 
   @override
   void initState() {
@@ -97,6 +101,38 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     if (added == true) _load();
   }
 
+  void _showQrDialog() {
+    final token = _qrToken;
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text('${widget.patient.patientName} — QR Code'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(data: token, size: 220, backgroundColor: Colors.white),
+            const SizedBox(height: 16),
+            const Text('Secret code', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            const SizedBox(height: 4),
+            SelectableText(token, style: const TextStyle(fontFamily: 'monospace', fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: token));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard')));
+              },
+              icon: const Icon(Icons.copy, size: 16),
+              label: const Text('Copy code'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.patient;
@@ -106,6 +142,9 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
         bottom: TabBar(
           controller: _tabs,
           isScrollable: true,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white70,
+          indicatorColor: Colors.white,
           tabs: const [
             Tab(icon: Icon(Icons.fitness_center), text: 'Rx'),
             Tab(icon: Icon(Icons.track_changes_outlined), text: 'Track'),
@@ -149,6 +188,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
                           const Text('sessions', style: TextStyle(fontSize: 11, color: AppColors.textMuted)),
                         ],
                       ),
+                      if (_qrToken.isNotEmpty)
+                        IconButton(
+                          onPressed: _showQrDialog,
+                          icon: const Icon(Icons.qr_code_2, color: AppColors.primary),
+                          tooltip: 'Show QR code',
+                        ),
                     ],
                   ),
                 ),
