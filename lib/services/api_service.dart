@@ -33,7 +33,11 @@ class ApiService {
 
   Future<void> _ensureCsrf() async => _dio.get('/csrf/');
 
+  /// Always re-fetches the CSRF cookie right before use, rather than trusting
+  /// whatever was cached at login -- a stale/missing/expired cookie silently
+  /// sends an empty X-CSRFToken header, which the server correctly 403s.
   Future<String> _csrf() async {
+    await _ensureCsrf();
     final cookies = await _cookieJar.loadForRequest(Uri.parse(baseUrl));
     final c = cookies.firstWhere(
       (c) => c.name == 'csrftoken',
@@ -73,7 +77,6 @@ class ApiService {
   // ── auth ──────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> login(String username, String password) async {
-    await _ensureCsrf();
     final csrf = await _csrf();
     final r = await _dio.post(
       '/login/',
