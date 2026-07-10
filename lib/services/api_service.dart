@@ -337,6 +337,33 @@ class ApiService {
     return _decode(r.data);
   }
 
+  Future<Map<String, dynamic>> updateExerciseParams(
+    int exerciseId, {
+    int? sets,
+    int? reps,
+    int? holdTimeSec,
+    int? restTimeSec,
+    bool? scheduleMorning,
+    bool? scheduleDay,
+    bool? scheduleEvening,
+  }) async {
+    final csrf = await _csrf();
+    final r = await _dio.post(
+      '/prescription-exercises/$exerciseId/params/',
+      data: {
+        if (sets != null) 'sets': sets,
+        if (reps != null) 'reps': reps,
+        if (holdTimeSec != null) 'hold_time_sec': holdTimeSec,
+        if (restTimeSec != null) 'rest_time_sec': restTimeSec,
+        if (scheduleMorning != null) 'schedule_morning': scheduleMorning,
+        if (scheduleDay != null) 'schedule_day': scheduleDay,
+        if (scheduleEvening != null) 'schedule_evening': scheduleEvening,
+      },
+      options: Options(headers: {'X-CSRFToken': csrf, 'Content-Type': 'application/json'}),
+    );
+    return _decode(r.data);
+  }
+
   // ── sessions ──────────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getSessions(String patientCode) async {

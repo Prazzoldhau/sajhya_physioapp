@@ -91,6 +91,135 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
     }
   }
 
+  Future<void> _editExerciseParams(Map<String, dynamic> ex) async {
+    final setsCtrl = TextEditingController(text: '${ex['sets'] ?? 3}');
+    final repsCtrl = TextEditingController(text: '${ex['reps'] ?? 10}');
+    final holdCtrl = TextEditingController(text: '${ex['hold_time_sec'] ?? 0}');
+    final restCtrl = TextEditingController(text: '${ex['rest_time_sec'] ?? 60}');
+    bool morning = ex['schedule_morning'] == true;
+    bool day = ex['schedule_day'] == true;
+    bool evening = ex['schedule_evening'] == true;
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ex['exercise_name']?.toString() ?? '',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: setsCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Sets'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: repsCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Reps'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: holdCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Hold (sec)'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: restCtrl,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Rest (sec)'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  const Text('When', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: AppColors.textMuted)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: [
+                      FilterChip(
+                        label: const Text('🌅 Morning'),
+                        selected: morning,
+                        onSelected: (v) => setSheetState(() => morning = v),
+                      ),
+                      FilterChip(
+                        label: const Text('🌤️ Day'),
+                        selected: day,
+                        onSelected: (v) => setSheetState(() => day = v),
+                      ),
+                      FilterChip(
+                        label: const Text('🌙 Evening'),
+                        selected: evening,
+                        onSelected: (v) => setSheetState(() => evening = v),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    if (saved != true) return;
+
+    try {
+      await ApiService().updateExerciseParams(
+        ex['id'] as int,
+        sets: int.tryParse(setsCtrl.text),
+        reps: int.tryParse(repsCtrl.text),
+        holdTimeSec: int.tryParse(holdCtrl.text),
+        restTimeSec: int.tryParse(restCtrl.text),
+        scheduleMorning: morning,
+        scheduleDay: day,
+        scheduleEvening: evening,
+      );
+      _load();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    }
+  }
+
   Future<void> _addExercisesTo(int prescriptionId) async {
     final added = await Navigator.push<bool>(
       context,
@@ -351,9 +480,18 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
   Widget _exerciseRow(Map<String, dynamic> ex) {
     final completed = ex['is_completed'] == true;
     final imageUrl = ex['exercise_url']?.toString() ?? '';
+    final schedule = [
+      if (ex['schedule_morning'] == true) '🌅',
+      if (ex['schedule_day'] == true) '🌤️',
+      if (ex['schedule_evening'] == true) '🌙',
+    ].join(' ');
+    final holdSec = ex['hold_time_sec'] as int? ?? 0;
+    final restSec = ex['rest_time_sec'] as int? ?? 0;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Checkbox(
             value: completed,
@@ -382,16 +520,35 @@ class _PatientDetailScreenState extends State<PatientDetailScreen>
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              ex['exercise_name']?.toString() ?? '',
-              style: TextStyle(
-                fontSize: 13,
-                decoration: completed ? TextDecoration.lineThrough : null,
-                color: completed ? AppColors.textMuted : AppColors.textPrimary,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  ex['exercise_name']?.toString() ?? '',
+                  style: TextStyle(
+                    fontSize: 13,
+                    decoration: completed ? TextDecoration.lineThrough : null,
+                    color: completed ? AppColors.textMuted : AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    Text('${ex['sets']}×${ex['reps']}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    if (holdSec > 0) Text('Hold ${holdSec}s', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    if (restSec > 0) Text('Rest ${restSec}s', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+                    if (schedule.isNotEmpty) Text(schedule, style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ],
             ),
           ),
-          Text('${ex['sets']}×${ex['reps']}', style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+          IconButton(
+            icon: const Icon(Icons.edit_outlined, size: 16, color: AppColors.primary),
+            onPressed: () => _editExerciseParams(ex),
+            tooltip: 'Edit dose & schedule',
+          ),
           IconButton(
             icon: const Icon(Icons.close, size: 16, color: AppColors.danger),
             onPressed: () => _removeExercise(ex['id'] as int),
