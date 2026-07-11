@@ -27,6 +27,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
   bool _loadingRegions = true;
   bool _loadingExercises = false;
   bool _saving = false;
+  bool _pickerExpanded = true;
 
   bool get _isAddingToExisting => widget.existingPrescriptionId != null;
 
@@ -76,6 +77,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
       _loadingExercises = true;
       _difficultyFilter = null;
       _searchCtrl.clear();
+      _pickerExpanded = false;
     });
     try {
       final raw = await ApiService().getExercises(subregionId: subregionId);
@@ -174,93 +176,158 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                     ),
                   ],
                 ),
-                if (!_isAddingToExisting) ...[
-                  const SizedBox(height: 12),
-                  CustomTextField(
-                    controller: _conditionCtrl,
-                    label: 'Condition (optional)',
-                    hint: 'e.g. Cervical Spondylosis',
-                    prefixIcon: Icons.label_outline,
-                  ),
-                ],
-                const SizedBox(height: 14),
-                _stepLabel('1', 'Choose a body region'),
-                const SizedBox(height: 8),
-                _loadingRegions
-                    ? const LinearProgressIndicator()
-                    : SizedBox(
-                        height: 40,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _regions.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, i) => _regionChip(_regions[i]),
-                        ),
-                      ),
-                if (_activeRegion != null) ...[
-                  const SizedBox(height: 14),
-                  _stepLabel('2', 'Choose an area'),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 36,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _activeRegion!.subregions.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 8),
-                      itemBuilder: (_, i) => _subregionChip(_activeRegion!.subregions[i]),
-                    ),
-                  ),
-                ],
+                const SizedBox(height: 12),
+                AnimatedCrossFade(
+                  duration: const Duration(milliseconds: 200),
+                  alignment: Alignment.topLeft,
+                  crossFadeState: _pickerExpanded ? CrossFadeState.showFirst : CrossFadeState.showSecond,
+                  firstChild: _fullPicker(),
+                  secondChild: _collapsedSummary(),
+                ),
               ],
             ),
           ),
-          if (_activeSubregion != null) ...[
-            Container(
-              color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Search exercises...',
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      isDense: true,
-                      suffixIcon: _searchCtrl.text.isEmpty
-                          ? null
-                          : IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () => setState(_searchCtrl.clear),
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  SizedBox(
-                    height: 32,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: [
-                        _difficultyChip(null, 'All'),
-                        const SizedBox(width: 8),
-                        _difficultyChip(1, 'Beginner'),
-                        const SizedBox(width: 8),
-                        _difficultyChip(2, 'Intermediate'),
-                        const SizedBox(width: 8),
-                        _difficultyChip(3, 'Advanced'),
-                        const SizedBox(width: 8),
-                        _difficultyChip(4, 'Super'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-          ],
+          const Divider(height: 1),
           Expanded(child: _exercisePanel()),
         ],
       ),
       bottomNavigationBar: _selected.isEmpty ? null : _selectedBar(),
+    );
+  }
+
+  Widget _fullPicker() {
+    return Column(
+      key: const ValueKey('full'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!_isAddingToExisting) ...[
+          CustomTextField(
+            controller: _conditionCtrl,
+            label: 'Condition (optional)',
+            hint: 'e.g. Cervical Spondylosis',
+            prefixIcon: Icons.label_outline,
+          ),
+          const SizedBox(height: 14),
+        ],
+        _stepLabel('1', 'Choose a body region'),
+        const SizedBox(height: 8),
+        _loadingRegions
+            ? const LinearProgressIndicator()
+            : SizedBox(
+                height: 40,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _regions.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) => _regionChip(_regions[i]),
+                ),
+              ),
+        if (_activeRegion != null) ...[
+          const SizedBox(height: 14),
+          _stepLabel('2', 'Choose an area'),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _activeRegion!.subregions.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (_, i) => _subregionChip(_activeRegion!.subregions[i]),
+            ),
+          ),
+        ],
+        if (_activeSubregion != null) ...[
+          const SizedBox(height: 14),
+          TextField(
+            controller: _searchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search exercises...',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              suffixIcon: _searchCtrl.text.isEmpty
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () => setState(_searchCtrl.clear),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          SizedBox(
+            height: 32,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                _difficultyChip(null, 'All'),
+                const SizedBox(width: 8),
+                _difficultyChip(1, 'Beginner'),
+                const SizedBox(width: 8),
+                _difficultyChip(2, 'Intermediate'),
+                const SizedBox(width: 8),
+                _difficultyChip(3, 'Advanced'),
+                const SizedBox(width: 8),
+                _difficultyChip(4, 'Super'),
+              ],
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => setState(() => _pickerExpanded = false),
+              icon: const Icon(Icons.expand_less, size: 16),
+              label: const Text('Collapse'),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _collapsedSummary() {
+    final regionName = _activeRegion?.regionName.replaceAll('_', ' ') ?? '';
+    String subregionName = '';
+    if (_activeRegion != null && _activeSubregion != null) {
+      final match = _activeRegion!.subregions.where((s) => s.id == _activeSubregion);
+      if (match.isNotEmpty) subregionName = match.first.subRegionName;
+    }
+    final condition = _conditionCtrl.text.trim();
+    final count = _filteredExercises.length;
+
+    return InkWell(
+      key: const ValueKey('collapsed'),
+      onTap: () => setState(() => _pickerExpanded = true),
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(color: AppColors.primary.withOpacity(0.06), borderRadius: BorderRadius.circular(12)),
+        child: Row(
+          children: [
+            Icon(_regionIcon(regionName), size: 18, color: AppColors.primary),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subregionName.isNotEmpty ? '$regionName • $subregionName' : regionName,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    condition.isNotEmpty ? '$condition • $count exercise${count == 1 ? '' : 's'}' : '$count exercise${count == 1 ? '' : 's'} found',
+                    style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            const Text('Change', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 12)),
+            const Icon(Icons.expand_more, size: 18, color: AppColors.primary),
+          ],
+        ),
+      ),
     );
   }
 
@@ -361,12 +428,12 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-        childAspectRatio: 0.72,
+        crossAxisCount: 3,
+        mainAxisSpacing: 8,
+        crossAxisSpacing: 8,
+        childAspectRatio: 0.66,
       ),
       itemCount: filtered.length,
       itemBuilder: (_, i) => _exerciseCard(filtered[i]),
@@ -390,13 +457,13 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
         duration: const Duration(milliseconds: 150),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: picked ? AppColors.primary : Colors.transparent, width: 2),
           boxShadow: [
             BoxShadow(
               color: picked ? AppColors.primary.withOpacity(0.25) : Colors.black.withOpacity(0.06),
-              blurRadius: picked ? 12 : 8,
-              offset: const Offset(0, 3),
+              blurRadius: picked ? 10 : 6,
+              offset: const Offset(0, 2),
             ),
           ],
         ),
@@ -405,7 +472,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(9)),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -414,7 +481,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                       Container(
                         color: AppColors.primary.withOpacity(0.35),
                         child: const Center(
-                          child: Icon(Icons.check_circle, color: Colors.white, size: 32),
+                          child: Icon(Icons.check_circle, color: Colors.white, size: 24),
                         ),
                       ),
                   ],
@@ -422,7 +489,7 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -430,18 +497,25 @@ class _PrescriptionScreenState extends State<PrescriptionScreen> {
                     e.exerciseName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 10.5),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 3),
                   Row(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
-                        child: Text(e.difficultyLabel, style: TextStyle(fontSize: 9, color: color, fontWeight: FontWeight.bold)),
+                      Flexible(
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                          child: Text(
+                            e.difficultyLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 8, color: color, fontWeight: FontWeight.bold),
+                          ),
+                        ),
                       ),
-                      const Spacer(),
-                      Text('${e.defaultSets}×${e.defaultReps}', style: const TextStyle(fontSize: 10, color: AppColors.textMuted)),
+                      const SizedBox(width: 3),
+                      Text('${e.defaultSets}×${e.defaultReps}', style: const TextStyle(fontSize: 8.5, color: AppColors.textMuted)),
                     ],
                   ),
                 ],
